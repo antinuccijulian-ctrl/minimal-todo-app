@@ -16,9 +16,11 @@ if getattr(sys, "frozen", False):
     DATA_DIR = Path(appdata) / "Minimal To-Do"
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     DATA_FILE = DATA_DIR / "tasks.json"
+    SETTINGS_FILE = DATA_DIR / "settings.json"
 else:
     RESOURCE_DIR = Path(__file__).parent
     DATA_FILE = RESOURCE_DIR / "tasks.json"
+    SETTINGS_FILE = RESOURCE_DIR / "settings.json"
 
 
 class TodoApp:
@@ -32,7 +34,11 @@ class TodoApp:
         self.root.configure(bg="#ffffff")
 
         self.tasks = self.load_tasks()
-        self.dark_mode = False
+        self.settings = self.load_settings()
+        self.dark_mode = self.settings.get("dark_mode", False)
+        window_geometry = self.settings.get("window_geometry")
+        if window_geometry:
+            self.root.geometry(window_geometry)
 
         style = ttk.Style()
         style.theme_use("clam")
@@ -75,7 +81,7 @@ class TodoApp:
 
         self.min_button = tk.Button(self.title_controls, text="—", command=self.root.iconify, bd=0, bg="#111111", fg="#ffffff", activeforeground="#ffffff")
         self.min_button.pack(side="right", padx=(6, 2))
-        self.close_button = tk.Button(self.title_controls, text="✕", command=self.root.destroy, bd=0, bg="#111111", fg="#ffffff", activeforeground="#ffffff")
+        self.close_button = tk.Button(self.title_controls, text="✕", command=self.on_close, bd=0, bg="#111111", fg="#ffffff", activeforeground="#ffffff")
         self.close_button.pack(side="right")
 
         # hover bindings for nicer button UX
@@ -142,6 +148,9 @@ class TodoApp:
         for w in (self.title_bar, self.title_label, self.title_icon):
             w.bind("<ButtonPress-1>", self._start_move)
             w.bind("<B1-Motion>", self._do_move)
+            w.bind("<ButtonRelease-1>", self._end_move)
+
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
         # ensure control buttons get theme updates as well
         self.min_button.configure(activebackground="#bbbbbb")
@@ -181,6 +190,24 @@ class TodoApp:
     def save_tasks(self):
         with DATA_FILE.open("w", encoding="utf-8") as handle:
             json.dump(self.tasks, handle, indent=2)
+
+    def load_settings(self):
+        if not SETTINGS_FILE.exists():
+            return {}
+
+        try:
+            with SETTINGS_FILE.open("r", encoding="utf-8") as handle:
+                return json.load(handle)
+        except (json.JSONDecodeError, OSError, TypeError):
+            return {}
+
+    def save_settings(self):
+        settings = {
+            "dark_mode": self.dark_mode,
+            "window_geometry": self.root.winfo_geometry(),
+        }
+        with SETTINGS_FILE.open("w", encoding="utf-8") as handle:
+            json.dump(settings, handle, indent=2)
 
     def apply_theme(self):
         if self.dark_mode:
@@ -297,6 +324,14 @@ class TodoApp:
         self.dark_mode = not self.dark_mode
         self.apply_theme()
         self.refresh_tasks()
+        self.save_settings()
+
+    def _end_move(self, _event):
+        self.save_settings()
+
+    def on_close(self):
+        self.save_settings()
+        self.root.destroy()
 
     def toggle_important(self):
         selected = self.listbox.curselection()
