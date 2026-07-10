@@ -1,9 +1,24 @@
 import json
+import sys
+import os
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-DATA_FILE = Path(__file__).with_name("tasks.json")
+# When running as a PyInstaller one-file exe, resources are unpacked
+# to a temp dir and __file__ won't point to the application folder.
+# Use the executable location when frozen, otherwise use the source file.
+if getattr(sys, "frozen", False):
+    # When frozen by PyInstaller, resources are available under _MEIPASS
+    RESOURCE_DIR = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    # Use per-user AppData for persistent data so the one-file exe doesn't lose tasks
+    appdata = os.getenv("APPDATA") or Path.home()
+    DATA_DIR = Path(appdata) / "Minimal To-Do"
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    DATA_FILE = DATA_DIR / "tasks.json"
+else:
+    RESOURCE_DIR = Path(__file__).parent
+    DATA_FILE = RESOURCE_DIR / "tasks.json"
 
 
 class TodoApp:
@@ -30,7 +45,7 @@ class TodoApp:
 
         # Load the app icon PNG to show in the custom title bar
         icon_loaded = False
-        icon_path = Path(__file__).with_name("assets").joinpath("icon.png")
+        icon_path = RESOURCE_DIR.joinpath("assets", "icon.png")
         if icon_path.exists():
             try:
                 _icon_img = tk.PhotoImage(file=str(icon_path))
@@ -45,7 +60,7 @@ class TodoApp:
 
         # set window icon for taskbar/title where supported
         try:
-            ico_path = Path(__file__).with_name("assets").joinpath("icon.ico")
+            ico_path = RESOURCE_DIR.joinpath("assets", "icon.ico")
             if ico_path.exists():
                 self.root.iconbitmap(str(ico_path))
         except Exception:
