@@ -12,9 +12,9 @@ class TodoApp:
         # remove native title bar so we can draw a custom one (allows coloring)
         self.root.overrideredirect(True)
         self.root.title("Minimal To-Do")
-        self.root.geometry("430x500")
-        self.root.minsize(380, 420)
-        self.root.configure(bg="#f4f4f4")
+        self.root.geometry("360x460")
+        self.root.minsize(340, 390)
+        self.root.configure(bg="#ffffff")
 
         self.tasks = self.load_tasks()
         self.dark_mode = False
@@ -25,7 +25,7 @@ class TodoApp:
         style.configure("TEntry", padding=6)
 
         # Custom title bar (replaces native OS title bar so we can color it)
-        self.title_bar = tk.Frame(root, bg="#f4f4f4", relief="flat", height=36)
+        self.title_bar = tk.Frame(root, bg="#111111", relief="flat", height=32)
         self.title_bar.pack(fill="x")
 
         # Load the app icon PNG to show in the custom title bar
@@ -34,14 +34,14 @@ class TodoApp:
         if icon_path.exists():
             try:
                 _icon_img = tk.PhotoImage(file=str(icon_path))
-                self.title_icon = tk.Label(self.title_bar, image=_icon_img, bg="#f4f4f4")
+                self.title_icon = tk.Label(self.title_bar, image=_icon_img, bg="#111111")
                 self.title_icon.image = _icon_img
                 icon_loaded = True
             except Exception:
                 icon_loaded = False
 
         if not icon_loaded:
-            self.title_icon = tk.Label(self.title_bar, text="🗒️", bg="#f4f4f4")
+            self.title_icon = tk.Label(self.title_bar, text="🗒️", bg="#111111", fg="#ffffff")
 
         # set window icon for taskbar/title where supported
         try:
@@ -52,15 +52,15 @@ class TodoApp:
             pass
         self.title_icon.pack(side="left", padx=(8, 6))
 
-        self.title_label = tk.Label(self.title_bar, text="Minimal To-Do", font=("Segoe UI", 10, "bold"), bg="#f4f4f4")
+        self.title_label = tk.Label(self.title_bar, text="Minimal To-Do", font=("Segoe UI", 10, "bold"), bg="#111111", fg="#ffffff")
         self.title_label.pack(side="left")
 
-        self.title_controls = tk.Frame(self.title_bar, bg="#f4f4f4")
+        self.title_controls = tk.Frame(self.title_bar, bg="#111111")
         self.title_controls.pack(side="right", padx=4)
 
-        self.min_button = tk.Button(self.title_controls, text="—", command=self.root.iconify, bd=0, bg="#f4f4f4")
+        self.min_button = tk.Button(self.title_controls, text="—", command=self.root.iconify, bd=0, bg="#111111", fg="#ffffff", activeforeground="#ffffff")
         self.min_button.pack(side="right", padx=(6, 2))
-        self.close_button = tk.Button(self.title_controls, text="✕", command=self.root.destroy, bd=0, bg="#f4f4f4")
+        self.close_button = tk.Button(self.title_controls, text="✕", command=self.root.destroy, bd=0, bg="#111111", fg="#ffffff", activeforeground="#ffffff")
         self.close_button.pack(side="right")
 
         # hover bindings for nicer button UX
@@ -70,13 +70,13 @@ class TodoApp:
         self.close_button.bind("<Leave>", lambda e: self.close_button.configure(cursor=""))
 
         # Content area
-        self.content_frame = tk.Frame(root, bg="#f4f4f4")
-        self.content_frame.pack(fill="both", expand=True)
+        self.content_frame = tk.Frame(root, bg="#ffffff", bd=0)
+        self.content_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
-        self.subtitle_label = tk.Label(self.content_frame, text="Keep your day simple.", font=("Segoe UI", 10), bg="#f4f4f4", fg="#666666")
-        self.subtitle_label.pack(pady=(12, 6))
+        self.subtitle_label = tk.Label(self.content_frame, text="A minimal black-and-white to-do.", font=("Segoe UI", 9), bg="#ffffff", fg="#444444")
+        self.subtitle_label.pack(pady=(14, 6))
 
-        self.input_frame = tk.Frame(self.content_frame, bg="#f4f4f4")
+        self.input_frame = tk.Frame(self.content_frame, bg="#f5f5f5")
         self.input_frame.pack(fill="x", padx=20, pady=6)
 
         # use a tk.Entry so we can control background/foreground colours directly
@@ -90,12 +90,12 @@ class TodoApp:
         self.theme_button = ttk.Button(self.input_frame, text="Dark Mode", command=self.toggle_theme)
         self.theme_button.pack(side="left", padx=(8, 0))
 
-        self.list_frame = tk.Frame(self.content_frame, bg="#f4f4f4")
+        self.list_frame = tk.Frame(self.content_frame, bg="#ffffff")
         self.list_frame.pack(fill="both", expand=True, padx=20, pady=(10, 16))
 
         self.listbox = tk.Listbox(
             self.list_frame,
-            height=14,
+            height=9,
             font=("Segoe UI", 11),
             bd=0,
             highlightthickness=0,
@@ -108,7 +108,7 @@ class TodoApp:
         self.listbox.bind("<<ListboxSelect>>", self.on_select)
         self.root.bind("<Delete>", lambda event: self.delete_task())
 
-        self.button_frame = tk.Frame(self.content_frame, bg="#f4f4f4")
+        self.button_frame = tk.Frame(self.content_frame, bg="#ffffff")
         self.button_frame.pack(fill="x", padx=20, pady=(0, 18))
 
         self.delete_button = ttk.Button(self.button_frame, text="Delete", command=self.delete_task)
@@ -178,33 +178,37 @@ class TodoApp:
             select_bg = "#4a4a4a"
             select_fg = "#ffffff"
             border = "#3a3a3a"
+            title_bg = "#181818"
+            control_bg = "#181818"
         else:
-            bg = "#f4f4f4"
-            fg = "#222222"
+            bg = "#ffffff"
+            fg = "#111111"
             muted = "#666666"
-            entry_bg = "white"
-            entry_fg = "#222222"
-            list_bg = "white"
-            select_bg = "#dce8ff"
-            select_fg = "#111111"
-            border = "#d0d0d0"
+            entry_bg = "#f5f5f5"
+            entry_fg = "#111111"
+            list_bg = "#ffffff"
+            select_bg = "#000000"
+            select_fg = "#ffffff"
+            border = "#cccccc"
+            title_bg = "#111111"
+            control_bg = "#111111"
 
         self.root.configure(bg=bg)
-        self.title_bar.configure(bg=bg)
-        self.title_icon.configure(bg=bg, fg=fg)
-        self.title_label.configure(bg=bg, fg=fg)
-        self.title_controls.configure(bg=bg)
-        self.min_button.configure(bg=bg, fg=fg, activebackground=border)
-        self.close_button.configure(bg=bg, fg=fg, activebackground="#ff5555")
+        self.title_bar.configure(bg=title_bg)
+        self.title_icon.configure(bg=title_bg, fg=fg)
+        self.title_label.configure(bg=title_bg, fg="#ffffff")
+        self.title_controls.configure(bg=control_bg)
+        self.min_button.configure(bg=control_bg, fg="#ffffff", activebackground=border)
+        self.close_button.configure(bg=control_bg, fg="#ffffff", activebackground="#ff5555")
         # hover colours
         self.theme_bg = bg
         self.btn_hover_bg = "#3a3a3a" if self.dark_mode else "#e6e6e6"
         self.close_hover_bg = "#b22222" if self.dark_mode else "#ff4444"
-        self.content_frame.configure(bg=bg)
-        self.subtitle_label.configure(bg=bg, fg=muted)
-        self.input_frame.configure(bg=bg)
-        self.list_frame.configure(bg=bg)
-        self.button_frame.configure(bg=bg)
+        self.content_frame.configure(bg="#ffffff" if not self.dark_mode else bg)
+        self.subtitle_label.configure(bg="#ffffff" if not self.dark_mode else bg, fg=muted)
+        self.input_frame.configure(bg="#f5f5f5" if not self.dark_mode else bg)
+        self.list_frame.configure(bg="#ffffff" if not self.dark_mode else bg)
+        self.button_frame.configure(bg="#ffffff" if not self.dark_mode else bg)
 
         self.task_entry.configure(bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
         self.listbox.configure(bg=list_bg, fg=fg, selectbackground=select_bg, selectforeground=select_fg, highlightbackground=border, highlightcolor=border)
