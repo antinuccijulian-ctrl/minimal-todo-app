@@ -1,3 +1,4 @@
+import argparse
 import json
 import sys
 import os
@@ -8,6 +9,15 @@ from tkinter import ttk, messagebox
 # When running as a PyInstaller one-file exe, resources are unpacked
 # to a temp dir and __file__ won't point to the application folder.
 # Use the executable location when frozen, otherwise use the source file.
+def parse_cli_args():
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--new", action="store_true", help="Open the app ready to create a new note")
+    parser.add_argument("--text", type=str, help="Optional note text to prefill")
+    args, _ = parser.parse_known_args()
+    return args
+
+CLI_ARGS = parse_cli_args()
+
 if getattr(sys, "frozen", False):
     # When frozen by PyInstaller, resources are available under _MEIPASS
     RESOURCE_DIR = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
@@ -33,12 +43,15 @@ class TodoApp:
         self.root.minsize(340, 390)
         self.root.configure(bg="#ffffff")
 
-        self.tasks = self.load_tasks()
+        self.tasks = []
         self.settings = self.load_settings()
         self.dark_mode = self.settings.get("dark_mode", False)
         window_geometry = self.settings.get("window_geometry")
         if window_geometry:
             self.root.geometry(window_geometry)
+
+        self.quick_new = CLI_ARGS.new
+        self.quick_new_text = CLI_ARGS.text
 
         style = ttk.Style()
         style.theme_use("clam")
@@ -141,7 +154,10 @@ class TodoApp:
         self.important_button.state(["disabled"])
 
         self.apply_theme()
-        self.refresh_tasks()
+        self.root.after(0, self.load_tasks_and_refresh)
+
+        if self.quick_new or self.quick_new_text:
+            self.root.after(100, self.focus_new_note)
 
         # make title bar draggable
         self._drag_data = {"x": 0, "y": 0}
@@ -172,6 +188,12 @@ class TodoApp:
         x = self.root.winfo_x() + dx
         y = self.root.winfo_y() + dy
         self.root.geometry(f"+{x}+{y}")
+
+    def focus_new_note(self):
+        self.task_entry.focus_set()
+        if self.quick_new_text:
+            self.task_entry.delete(0, tk.END)
+            self.task_entry.insert(0, self.quick_new_text)
 
     def load_tasks(self):
         if not DATA_FILE.exists():
@@ -285,6 +307,10 @@ class TodoApp:
         except Exception:
             pass
 
+    def load_tasks_and_refresh(self):
+        self.tasks = self.load_tasks()
+        self.refresh_tasks()
+
     def refresh_tasks(self):
         self.listbox.delete(0, tk.END)
         for task in self.tasks:
@@ -352,7 +378,31 @@ class TodoApp:
             self.important_button.state(["disabled"])
 
 
-if __name__ == "__main__":
+def create_loading_root():
     root = tk.Tk()
-    app = TodoApp(root)
+    root.title("Minimal To-Do")
+    root.geometry("360x460")
+    root.minsize(340, 390)
+    root.configure(bg="#ffffff")
+
+    loading_label = tk.Label(root, text="Loading Minimal To-Do…", font=("Segoe UI", 12), bg="#ffffff", fg="#111111")
+    loading_label.pack(fill="both", expand=True, padx=20, pady=20)
+
+    root.update_idletasks()
+    return root, loading_label
+
+
+def launch_app():
+    root, loading_label = create_loading_root()
+    root.deiconify()
+    root.after(10, lambda: start_full_app(root, loading_label))
     root.mainloop()
+
+
+def start_full_app(root, loading_label):
+    loading_label.destroy()
+    TodoApp(root)
+
+
+if __name__ == "__main__":
+    launch_app()
