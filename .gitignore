@@ -4,3 +4,8 @@ __pycache__/
 *.pyd
 *.db
 *.json
+
+# PyInstaller build output
+build/
+dist/
+todo.spec
