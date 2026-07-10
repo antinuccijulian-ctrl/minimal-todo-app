@@ -9,6 +9,8 @@ DATA_FILE = Path(__file__).with_name("tasks.json")
 class TodoApp:
     def __init__(self, root):
         self.root = root
+        # remove native title bar so we can draw a custom one (allows coloring)
+        self.root.overrideredirect(True)
         self.root.title("Minimal To-Do")
         self.root.geometry("430x500")
         self.root.minsize(380, 420)
@@ -22,28 +24,63 @@ class TodoApp:
         style.configure("TButton", font=("Segoe UI", 10), padding=6)
         style.configure("TEntry", padding=6)
 
-        self.title_label = tk.Label(
-            root,
-            text="To Do",
-            font=("Segoe UI", 20, "bold"),
-            bg="#f4f4f4",
-            fg="#222222",
-        )
-        self.title_label.pack(pady=(18, 8))
+        # Custom title bar (replaces native OS title bar so we can color it)
+        self.title_bar = tk.Frame(root, bg="#f4f4f4", relief="flat", height=36)
+        self.title_bar.pack(fill="x")
 
-        self.subtitle_label = tk.Label(
-            root,
-            text="Keep your day simple.",
-            font=("Segoe UI", 10),
-            bg="#f4f4f4",
-            fg="#666666",
-        )
-        self.subtitle_label.pack(pady=(0, 14))
+        # Load the app icon PNG to show in the custom title bar
+        icon_loaded = False
+        icon_path = Path(__file__).with_name("assets").joinpath("icon.png")
+        if icon_path.exists():
+            try:
+                _icon_img = tk.PhotoImage(file=str(icon_path))
+                self.title_icon = tk.Label(self.title_bar, image=_icon_img, bg="#f4f4f4")
+                self.title_icon.image = _icon_img
+                icon_loaded = True
+            except Exception:
+                icon_loaded = False
 
-        self.input_frame = tk.Frame(root, bg="#f4f4f4")
+        if not icon_loaded:
+            self.title_icon = tk.Label(self.title_bar, text="🗒️", bg="#f4f4f4")
+
+        # set window icon for taskbar/title where supported
+        try:
+            ico_path = Path(__file__).with_name("assets").joinpath("icon.ico")
+            if ico_path.exists():
+                self.root.iconbitmap(str(ico_path))
+        except Exception:
+            pass
+        self.title_icon.pack(side="left", padx=(8, 6))
+
+        self.title_label = tk.Label(self.title_bar, text="Minimal To-Do", font=("Segoe UI", 10, "bold"), bg="#f4f4f4")
+        self.title_label.pack(side="left")
+
+        self.title_controls = tk.Frame(self.title_bar, bg="#f4f4f4")
+        self.title_controls.pack(side="right", padx=4)
+
+        self.min_button = tk.Button(self.title_controls, text="—", command=self.root.iconify, bd=0, bg="#f4f4f4")
+        self.min_button.pack(side="right", padx=(6, 2))
+        self.close_button = tk.Button(self.title_controls, text="✕", command=self.root.destroy, bd=0, bg="#f4f4f4")
+        self.close_button.pack(side="right")
+
+        # hover bindings for nicer button UX
+        self.min_button.bind("<Enter>", lambda e: self.min_button.configure(cursor="hand2"))
+        self.min_button.bind("<Leave>", lambda e: self.min_button.configure(cursor=""))
+        self.close_button.bind("<Enter>", lambda e: self.close_button.configure(cursor="hand2"))
+        self.close_button.bind("<Leave>", lambda e: self.close_button.configure(cursor=""))
+
+        # Content area
+        self.content_frame = tk.Frame(root, bg="#f4f4f4")
+        self.content_frame.pack(fill="both", expand=True)
+
+        self.subtitle_label = tk.Label(self.content_frame, text="Keep your day simple.", font=("Segoe UI", 10), bg="#f4f4f4", fg="#666666")
+        self.subtitle_label.pack(pady=(12, 6))
+
+        self.input_frame = tk.Frame(self.content_frame, bg="#f4f4f4")
         self.input_frame.pack(fill="x", padx=20, pady=6)
 
-        self.task_entry = ttk.Entry(self.input_frame)
+        # use a tk.Entry so we can control background/foreground colours directly
+        self.task_entry = tk.Entry(self.input_frame, font=("Segoe UI", 10))
         self.task_entry.pack(side="left", fill="x", expand=True)
         self.task_entry.bind("<Return>", lambda event: self.add_task())
 
@@ -53,7 +90,7 @@ class TodoApp:
         self.theme_button = ttk.Button(self.input_frame, text="Dark Mode", command=self.toggle_theme)
         self.theme_button.pack(side="left", padx=(8, 0))
 
-        self.list_frame = tk.Frame(root, bg="#f4f4f4")
+        self.list_frame = tk.Frame(self.content_frame, bg="#f4f4f4")
         self.list_frame.pack(fill="both", expand=True, padx=20, pady=(10, 16))
 
         self.listbox = tk.Listbox(
@@ -71,7 +108,7 @@ class TodoApp:
         self.listbox.bind("<<ListboxSelect>>", self.on_select)
         self.root.bind("<Delete>", lambda event: self.delete_task())
 
-        self.button_frame = tk.Frame(root, bg="#f4f4f4")
+        self.button_frame = tk.Frame(self.content_frame, bg="#f4f4f4")
         self.button_frame.pack(fill="x", padx=20, pady=(0, 18))
 
         self.delete_button = ttk.Button(self.button_frame, text="Delete", command=self.delete_task)
@@ -84,6 +121,33 @@ class TodoApp:
 
         self.apply_theme()
         self.refresh_tasks()
+
+        # make title bar draggable
+        self._drag_data = {"x": 0, "y": 0}
+        for w in (self.title_bar, self.title_label, self.title_icon):
+            w.bind("<ButtonPress-1>", self._start_move)
+            w.bind("<B1-Motion>", self._do_move)
+
+        # ensure control buttons get theme updates as well
+        self.min_button.configure(activebackground="#bbbbbb")
+        self.close_button.configure(activebackground="#ff5555")
+
+        # bind hover color behavior (methods set in apply_theme)
+        self.min_button.bind("<Enter>", self._on_min_enter)
+        self.min_button.bind("<Leave>", self._on_min_leave)
+        self.close_button.bind("<Enter>", self._on_close_enter)
+        self.close_button.bind("<Leave>", self._on_close_leave)
+
+    def _start_move(self, event):
+        self._drag_data["x"] = event.x
+        self._drag_data["y"] = event.y
+
+    def _do_move(self, event):
+        dx = event.x - self._drag_data["x"]
+        dy = event.y - self._drag_data["y"]
+        x = self.root.winfo_x() + dx
+        y = self.root.winfo_y() + dy
+        self.root.geometry(f"+{x}+{y}")
 
     def load_tasks(self):
         if not DATA_FILE.exists():
@@ -126,20 +190,54 @@ class TodoApp:
             border = "#d0d0d0"
 
         self.root.configure(bg=bg)
+        self.title_bar.configure(bg=bg)
+        self.title_icon.configure(bg=bg, fg=fg)
         self.title_label.configure(bg=bg, fg=fg)
+        self.title_controls.configure(bg=bg)
+        self.min_button.configure(bg=bg, fg=fg, activebackground=border)
+        self.close_button.configure(bg=bg, fg=fg, activebackground="#ff5555")
+        # hover colours
+        self.theme_bg = bg
+        self.btn_hover_bg = "#3a3a3a" if self.dark_mode else "#e6e6e6"
+        self.close_hover_bg = "#b22222" if self.dark_mode else "#ff4444"
+        self.content_frame.configure(bg=bg)
         self.subtitle_label.configure(bg=bg, fg=muted)
         self.input_frame.configure(bg=bg)
         self.list_frame.configure(bg=bg)
         self.button_frame.configure(bg=bg)
 
-        self.task_entry.configure(style="TEntry")
-        self.task_entry.configure(background=entry_bg, foreground=entry_fg)
+        self.task_entry.configure(bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
         self.listbox.configure(bg=list_bg, fg=fg, selectbackground=select_bg, selectforeground=select_fg, highlightbackground=border, highlightcolor=border)
 
         style = ttk.Style()
         style.configure("TButton", foreground=fg, background=bg)
         style.map("TButton", background=[("active", "#3f3f3f" if self.dark_mode else "#e6e6e6")])
         self.theme_button.configure(text="Light Mode" if self.dark_mode else "Dark Mode")
+
+    # hover handlers for title controls
+    def _on_min_enter(self, _event):
+        try:
+            self.min_button.configure(bg=self.btn_hover_bg)
+        except Exception:
+            pass
+
+    def _on_min_leave(self, _event):
+        try:
+            self.min_button.configure(bg=self.theme_bg)
+        except Exception:
+            pass
+
+    def _on_close_enter(self, _event):
+        try:
+            self.close_button.configure(bg=self.close_hover_bg)
+        except Exception:
+            pass
+
+    def _on_close_leave(self, _event):
+        try:
+            self.close_button.configure(bg=self.theme_bg)
+        except Exception:
+            pass
 
     def refresh_tasks(self):
         self.listbox.delete(0, tk.END)
